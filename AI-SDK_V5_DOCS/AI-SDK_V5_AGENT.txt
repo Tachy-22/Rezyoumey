@@ -1,0 +1,447 @@
+AI SDK 5 is available now.
+View Announcement
+AI SDK by Vercel
+Foundations
+
+Overview
+Providers and Models
+Prompts
+Tools
+Streaming
+Getting Started
+
+Navigating the Library
+Next.js App Router
+Next.js Pages Router
+Svelte
+Vue.js (Nuxt)
+Node.js
+Expo
+Agents
+
+Overview
+Workflow Patterns
+Agent Class
+Loop Control
+AI SDK Core
+
+Overview
+Generating Text
+Generating Structured Data
+Tool Calling
+Model Context Protocol (MCP) Tools
+Prompt Engineering
+Settings
+Embeddings
+Image Generation
+Transcription
+Speech
+Language Model Middleware
+Provider & Model Management
+Error Handling
+Testing
+Telemetry
+AI SDK UI
+
+Overview
+Chatbot
+Chatbot Message Persistence
+Chatbot Resume Streams
+Chatbot Tool Usage
+Generative User Interfaces
+Completion
+Object Generation
+Streaming Custom Data
+Error Handling
+Transport
+Reading UIMessage Streams
+Message Metadata
+Stream Protocols
+AI SDK RSC
+
+Advanced
+
+Reference
+
+AI SDK Core
+
+generateText
+streamText
+generateObject
+streamObject
+Agent
+embed
+embedMany
+generateImage
+transcribe
+generateSpeech
+tool
+dynamicTool
+experimental_createMCPClient
+Experimental_StdioMCPTransport
+jsonSchema
+zodSchema
+valibotSchema
+ModelMessage
+UIMessage
+validateUIMessages
+safeValidateUIMessages
+createProviderRegistry
+customProvider
+cosineSimilarity
+wrapLanguageModel
+LanguageModelV2Middleware
+extractReasoningMiddleware
+simulateStreamingMiddleware
+defaultSettingsMiddleware
+stepCountIs
+hasToolCall
+simulateReadableStream
+smoothStream
+generateId
+createIdGenerator
+AI SDK UI
+
+AI SDK RSC
+
+Stream Helpers
+
+AI SDK Errors
+
+Migration Guides
+
+Troubleshooting
+
+AI SDK Core
+Agent
+Agent
+
+Creates a reusable AI agent that can generate text, stream responses, and use tools across multiple steps.
+
+It is ideal for building autonomous AI systems that need to perform complex, multi-step tasks with tool calling capabilities. Unlike single-step functions like generateText, agents can iteratively call tools and make decisions based on intermediate results.
+
+
+import { Experimental_Agent as Agent } from 'ai';
+
+const agent = new Agent({
+  model: 'openai/gpt-4o',
+  system: 'You are a helpful assistant.',
+  tools: {
+    weather: weatherTool,
+    calculator: calculatorTool,
+  },
+});
+
+const { text } = await agent.generate({
+  prompt: 'What is the weather in NYC?',
+});
+
+console.log(text);
+To see Agent in action, check out these examples.
+
+Import
+
+import { Experimental_Agent as Agent } from "ai"
+Constructor
+
+Parameters
+
+model:
+LanguageModel
+The language model to use.
+system:
+string
+The system prompt to use that specifies the behavior of the model.
+tools:
+Record<string, Tool>
+The tools that the model can call. The model needs to support calling tools.
+toolChoice:
+ToolChoice
+The tool choice strategy. Options: 'auto' | 'none' | 'required' | { type: 'tool', toolName: string }. Default: 'auto'
+stopWhen:
+StopCondition | StopCondition[]
+Condition for stopping the generation when there are tool results in the last step. Default: stepCountIs(1)
+activeTools:
+Array<string>
+Limits the tools that are available for the model to call without changing the tool call and result types.
+experimental_output:
+Output
+Optional specification for parsing structured outputs from the LLM response.
+prepareStep:
+PrepareStepFunction
+Optional function that you can use to provide different settings for a step.
+experimental_repairToolCall:
+ToolCallRepairFunction
+A function that attempts to repair a tool call that failed to parse.
+onStepFinish:
+GenerateTextOnStepFinishCallback
+Callback that is called when each step (LLM call) is finished, including intermediate steps.
+experimental_context:
+unknown
+Context that is passed into tool calls. Experimental (can break in patch releases).
+experimental_telemetry:
+TelemetrySettings
+Optional telemetry configuration (experimental).
+maxOutputTokens:
+number
+Maximum number of tokens to generate.
+temperature:
+number
+Temperature setting. The value is passed through to the provider. The range depends on the provider and model.
+topP:
+number
+Top-p sampling setting. The value is passed through to the provider. The range depends on the provider and model.
+topK:
+number
+Top-k sampling setting. The value is passed through to the provider. The range depends on the provider and model.
+presencePenalty:
+number
+Presence penalty setting. The value is passed through to the provider. The range depends on the provider and model.
+frequencyPenalty:
+number
+Frequency penalty setting. The value is passed through to the provider. The range depends on the provider and model.
+stopSequences:
+string[]
+Stop sequences to use. The value is passed through to the provider.
+seed:
+number
+Seed for random number generation. The value is passed through to the provider.
+maxRetries:
+number
+Maximum number of retries. Default: 2.
+abortSignal:
+AbortSignal
+An optional abort signal that can be used to cancel the call.
+Methods
+
+generate()
+
+Generates text and calls tools for a given prompt. Returns a promise that resolves to a GenerateTextResult.
+
+
+const result = await agent.generate({
+  prompt: 'What is the weather like?',
+});
+prompt:
+string | Array<ModelMessage>
+A text prompt.
+messages:
+Array<SystemModelMessage | UserModelMessage | AssistantModelMessage | ToolModelMessage>
+A list of messages that represent a conversation.
+providerMetadata?:
+ProviderMetadata
+Additional provider-specific metadata. They are passed through from the provider to the AI SDK and enable provider-specific results that can be fully encapsulated in the provider.
+providerOptions?:
+ProviderOptions
+Additional provider-specific metadata. They are passed through to the provider from the AI SDK and enable provider-specific functionality that can be fully encapsulated in the provider.
+system?:
+string
+The system prompt to use that specifies the behavior of the model.
+Returns
+
+The generate() method returns a GenerateTextResult object with the same properties as generateText.
+
+stream()
+
+Streams text and calls tools for a given prompt. Returns a StreamTextResult that can be used to iterate over the stream.
+
+
+const stream = agent.stream({
+  prompt: 'Tell me a story about a robot.',
+});
+
+for await (const chunk of stream.textStream) {
+  console.log(chunk);
+}
+prompt:
+string | Array<ModelMessage>
+A text prompt.
+messages:
+Array<SystemModelMessage | UserModelMessage | AssistantModelMessage | ToolModelMessage>
+A list of messages that represent a conversation.
+providerMetadata?:
+ProviderMetadata
+Additional provider-specific metadata. They are passed through from the provider to the AI SDK and enable provider-specific results that can be fully encapsulated in the provider.
+providerOptions?:
+ProviderOptions
+Additional provider-specific metadata. They are passed through to the provider from the AI SDK and enable provider-specific functionality that can be fully encapsulated in the provider.
+system?:
+string
+The system prompt to use that specifies the behavior of the model.
+Returns
+
+The stream() method returns a StreamTextResult object with the same properties as streamText.
+
+respond()
+
+Creates a Response object that streams UI messages to the client. This method is particularly useful for building chat interfaces in web applications.
+
+
+export async function POST(request: Request) {
+  const { messages } = await request.json();
+
+  return agent.respond({
+    messages,
+  });
+}
+messages:
+UIMessage[]
+Array of UI messages to process.
+Returns
+
+Returns a Response object that streams UI messages to the client in the format expected by the useChat hook and other UI integrations.
+
+Types
+
+InferAgentUIMessage
+
+Infers the UI message type of an agent, useful for type-safe message handling in TypeScript applications.
+
+
+import {
+  Experimental_Agent as Agent,
+  Experimental_InferAgentUIMessage as InferAgentUIMessage,
+} from 'ai';
+
+const weatherAgent = new Agent({
+  model: 'openai/gpt-4o',
+  tools: { weather: weatherTool },
+});
+
+type WeatherAgentUIMessage = InferAgentUIMessage<typeof weatherAgent>;
+Examples
+
+Basic Agent with Tools
+
+Create an agent that can use multiple tools to answer questions:
+
+
+import { Experimental_Agent as Agent, stepCountIs } from 'ai';
+import { weatherTool, calculatorTool } from './tools';
+
+const assistant = new Agent({
+  model: 'openai/gpt-4o',
+  system: 'You are a helpful assistant.',
+  tools: {
+    weather: weatherTool,
+    calculator: calculatorTool,
+  },
+  stopWhen: stepCountIs(3),
+});
+
+// Generate a response
+const result = await assistant.generate({
+  prompt: 'What is the weather in NYC and what is 100 * 25?',
+});
+
+console.log(result.text);
+console.log(result.steps); // Array of all steps taken
+Streaming Agent Response
+
+Stream responses for real-time interaction:
+
+
+const agent = new Agent({
+  model: 'openai/gpt-4o',
+  system: 'You are a creative storyteller.',
+});
+
+const stream = agent.stream({
+  prompt: 'Tell me a short story about a time traveler.',
+});
+
+for await (const chunk of stream.textStream) {
+  process.stdout.write(chunk);
+}
+Agent with Output Parsing
+
+Parse structured output from agent responses:
+
+
+import { z } from 'zod';
+
+const analysisAgent = new Agent({
+  model: 'openai/gpt-4o',
+  experimental_output: {
+    schema: z.object({
+      sentiment: z.enum(['positive', 'negative', 'neutral']),
+      score: z.number(),
+      summary: z.string(),
+    }),
+  },
+});
+
+const result = await analysisAgent.generate({
+  prompt: 'Analyze this review: "The product exceeded my expectations!"',
+});
+
+console.log(result.experimental_output); // Typed as { sentiment: 'positive' | 'negative' | 'neutral', score: number, summary: string }
+Next.js Route Handler
+
+Use an agent in a Next.js API route:
+
+
+// app/api/chat/route.ts
+import { Experimental_Agent as Agent } from 'ai';
+
+const agent = new Agent({
+  model: 'openai/gpt-4o',
+  system: 'You are a helpful assistant.',
+  tools: {
+    // your tools here
+  },
+});
+
+export async function POST(request: Request) {
+  const { messages } = await request.json();
+
+  return agent.respond({
+    messages,
+  });
+}
+Previous
+streamObject
+Next
+embed
+On this page
+Agent
+Import
+Constructor
+Parameters
+Methods
+generate()
+Returns
+stream()
+Returns
+respond()
+Returns
+Types
+InferAgentUIMessage
+Examples
+Basic Agent with Tools
+Streaming Agent Response
+Agent with Output Parsing
+Next.js Route Handler
+Deploy and Scale AI Apps with Vercel.
+Vercel delivers the infrastructure and developer experience you need to ship reliable AI-powered applications at scale.
+Trusted by industry leaders:
+leonardo-ai Logo
+zapier Logo
+Resources
+Docs
+Cookbook
+Providers
+Showcase
+GitHub
+Discussions
+More
+Playground
+Contact Sales
+About Vercel
+Next.js + Vercel
+Open Source Software
+GitHub
+X
+Legal
+Privacy Policy
+© 2025 Vercel, Inc.

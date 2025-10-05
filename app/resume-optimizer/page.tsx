@@ -92,20 +92,6 @@ export default function ResumeOptimizerPage() {
     setStatusMessage('Starting resume optimization...');
 
     try {
-      // Step 1: Initialize optimization
-      setProgress(20);
-      setStatusMessage('Analyzing job requirements...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Step 2: Extract resume data
-      setProgress(50);
-      setStatusMessage('Extracting resume data...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Step 3: Optimize resume
-      setProgress(80);
-      setStatusMessage('Optimizing resume for job...');
-
       const response = await fetch('/api/optimize-resume', {
         method: 'POST',
         headers: {
@@ -121,15 +107,52 @@ export default function ResumeOptimizerPage() {
         throw new Error('Failed to optimize resume');
       }
 
-      const result = await response.json();
+      // Handle Server-Sent Events
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      if (result.success && result.optimizedResumeData) {
-        setOptimizedResume(result.optimizedResumeData);
-        setProgress(100);
-        setStatusMessage('Resume optimization completed!');
-        toast.success('Resume optimized successfully!');
-      } else {
-        throw new Error(result.error || 'Optimization failed');
+      if (!reader) {
+        throw new Error('No response stream available');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'progress') {
+                setStatusMessage(data.message);
+                // Update progress based on step
+                if (data.step && data.totalSteps) {
+                  setProgress((data.step / data.totalSteps) * 90); // Keep 10% for completion
+                } else {
+                  setProgress(prev => Math.min(prev + 10, 90));
+                }
+              } else if (data.type === 'complete') {
+                if (data.success && data.optimizedResumeData) {
+                  setOptimizedResume(data.optimizedResumeData);
+                  setProgress(100);
+                  setStatusMessage('Resume optimization completed!');
+                  toast.success('Resume optimized successfully!');
+                } else {
+                  throw new Error(data.error || 'Optimization failed');
+                }
+              } else if (data.type === 'error') {
+                throw new Error(data.error || 'Optimization failed');
+              }
+            } catch (parseError) {
+              console.warn('Failed to parse SSE data:', parseError);
+            }
+          }
+        }
       }
 
     } catch (error) {
@@ -157,7 +180,7 @@ export default function ResumeOptimizerPage() {
 
   const downloadOptimizedResume = () => {
     if (!optimizedResume) return;
-    
+
     toast.success('Generating PDF... Please wait');
     handlePrint();
   };
@@ -246,30 +269,44 @@ export default function ResumeOptimizerPage() {
               <Sparkles className="h-5 w-5 mr-2" />
               {isProcessing ? 'Optimizing...' : 'Optimize Resume'}
             </Button>
-          </div>
 
-          {/* Results Section */}
-          <div className=" col-span-2">
-            {optimizedResume ? (
-              <Card className='border'>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5" />
-                      Optimized Resume
-                    </span>
-                    <Button onClick={downloadOptimizedResume} variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div ref={resumeRef} className="print:scale-100 print:w-auto print:h-auto">
-                    <ResumeTemplate1 resumeData={optimizedResume || undefined} />
+            {/* Progress Display */}
+            {isProcessing && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">Progress</span>
+                      <span>{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="w-full" />
+                    <p className="text-sm text-gray-600">{statusMessage}</p>
                   </div>
                 </CardContent>
               </Card>
+            )}
+          </div>
+
+          {/* Results Section */}
+          <div className=" col-span-2 flex flex-col gap-2">
+            <div className="flex items-center justify-between pb-0 ">
+              <span className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                Optimized Resume
+              </span>
+              <Button onClick={downloadOptimizedResume} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            </div>
+            {optimizedResume ? (
+              <div ref={resumeRef} className="print:scale-100 print:w-auto print:h-auto ">
+                <ResumeTemplate1 
+                  resumeData={optimizedResume} 
+                //  editable={true}
+                 // onUpdate={setOptimizedResume}
+                />
+              </div>
             ) : (
               <Card>
                 <CardContent className="pt-6">
