@@ -65,7 +65,7 @@ export function FileUpload({
         onFileSelect(file);
       }
     }
-  }, [disabled, onFileSelect, maxSize]);
+  }, [disabled, onFileSelect, maxSize, validateFile]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (disabled) return;
