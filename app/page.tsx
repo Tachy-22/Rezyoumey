@@ -6,13 +6,10 @@ import { Button } from '@/components/ui/button';
 import { FileInput } from '@/components/ui/file-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Upload, Sparkles, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import ResumeTemplate1 from '@/components/templates/ResumeTemplate1';
-import { extractTextFromPDFClient } from '@/lib/pdf-client-utils';
 import { extractTextFromPDF } from '@/lib/pdf-utils';
 import { useReactToPrint } from 'react-to-print';
 
@@ -52,13 +49,10 @@ interface ResumeData {
 }
 
 export default function ResumeOptimizerPage() {
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [optimizedResume, setOptimizedResume] = useState<ResumeData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [statusMessage, setStatusMessage] = useState('');
 
   const handleFileUpload = async (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -66,8 +60,6 @@ export default function ResumeOptimizerPage() {
       return;
     }
 
-    setResumeFile(file);
-    setStatusMessage('Converting PDF to text...');
 
     try {
       // Convert PDF to text using server-side utility
@@ -88,24 +80,8 @@ export default function ResumeOptimizerPage() {
     }
 
     setIsProcessing(true);
-    setProgress(0);
-    setStatusMessage('Starting resume optimization...');
 
     try {
-      // Step 1: Initialize optimization
-      setProgress(20);
-      setStatusMessage('Analyzing job requirements...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Step 2: Extract resume data
-      setProgress(50);
-      setStatusMessage('Extracting resume data...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Step 3: Optimize resume
-      setProgress(80);
-      setStatusMessage('Optimizing resume for job...');
-
       const response = await fetch('/api/optimize-resume', {
         method: 'POST',
         headers: {
@@ -125,8 +101,6 @@ export default function ResumeOptimizerPage() {
 
       if (result.success && result.optimizedResumeData) {
         setOptimizedResume(result.optimizedResumeData);
-        setProgress(100);
-        setStatusMessage('Resume optimization completed!');
         toast.success('Resume optimized successfully!');
       } else {
         throw new Error(result.error || 'Optimization failed');
@@ -135,7 +109,6 @@ export default function ResumeOptimizerPage() {
     } catch (error) {
       console.error('Optimization error:', error);
       toast.error('Failed to optimize resume. Please try again.');
-      setStatusMessage('Optimization failed');
     } finally {
       setIsProcessing(false);
     }
