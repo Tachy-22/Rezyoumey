@@ -8,11 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Upload, Sparkles, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import ResumeTemplate1 from '@/components/templates/ResumeTemplate1';
-import { extractTextFromPDFClient } from '@/lib/pdf-client-utils';
 import { extractTextFromPDF } from '@/lib/pdf-utils';
 import { useReactToPrint } from 'react-to-print';
 
@@ -52,7 +50,6 @@ interface ResumeData {
 }
 
 export default function ResumeOptimizerPage() {
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [optimizedResume, setOptimizedResume] = useState<ResumeData | null>(null);
@@ -66,7 +63,6 @@ export default function ResumeOptimizerPage() {
       return;
     }
 
-    setResumeFile(file);
     setStatusMessage('Converting PDF to text...');
 
     try {
@@ -313,7 +309,7 @@ export default function ResumeOptimizerPage() {
                   <Alert>
                     <FileText className="h-4 w-4" />
                     <AlertDescription>
-                      Upload your resume and job description, then click "Optimize Resume" to see the optimized version here.
+                      Upload your resume and job description, then click &quot;Optimize Resume&quot; to see the optimized version here.
                     </AlertDescription>
                   </Alert>
                 </CardContent>

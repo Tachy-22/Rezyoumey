@@ -249,7 +249,7 @@ export default function ResumeOptimizerPage() {
                   <Alert>
                     <FileText className="h-4 w-4" />
                     <AlertDescription>
-                      Upload your resume and job description, then click "Optimize Resume" to see the optimized version here.
+                      Upload your resume and job description, then click &quot;Optimize Resume&quot; to see the optimized version here.
                     </AlertDescription>
                   </Alert>
                 </CardContent>
