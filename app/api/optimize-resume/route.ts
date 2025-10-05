@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        const sendUpdate = (data: { type: string; message?: string; step?: number; totalSteps?: number; toolsUsed?: string[]; success?: boolean; optimizedResumeData?: any; executionTime?: number; error?: string }) => {
+        const sendUpdate = (data: { type: string; message?: string; step?: number; totalSteps?: number; toolsUsed?: string[]; success?: boolean; optimizedResumeData?: unknown; executionTime?: number; error?: string }) => {
           const message = `data: ${JSON.stringify(data)}\n\n`;
           controller.enqueue(encoder.encode(message));
         };

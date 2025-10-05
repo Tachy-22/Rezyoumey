@@ -1,4 +1,4 @@
-import { generateText, LanguageModel, stepCountIs } from 'ai';
+import { generateText, LanguageModel, stepCountIs, ToolSet } from 'ai';
 import { google } from '@ai-sdk/google';
 import { resumeOptimizerTools } from './tools';
 import { RESUME_OPTIMIZER_SYSTEM_PROMPT } from './system-prompt';
@@ -28,7 +28,7 @@ export interface ProgressUpdate {
 
 export class ResumeOptimizerAgent {
   private model = google('gemini-2.5-flash');
-  private allTools: Record<string, any> = {};
+  private allTools: ToolSet = {};
 
   constructor() {
     this.initializeTools();
