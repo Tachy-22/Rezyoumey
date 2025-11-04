@@ -77,7 +77,7 @@ export default function ResumeOptimizerPage() {
       setResumeText(text);
       setIsExtracting(false);
       toast.success('PDF converted to text successfully');
-      console.log('Resume text extracted, length:', text.length);
+    //  console.log('Resume text extracted, length:', text.length);
     } catch (error) {
       setIsExtracting(false);
       setUploadedFile(null);

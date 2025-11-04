@@ -3,7 +3,7 @@ export async function extractTextFromPDFClient(file: File): Promise<string> {
   // For now, return sample text since we need a browser-compatible PDF library
   // In production, you'd use a library like PDF.js or react-pdf
   
-  console.log('Processing PDF file:', file.name, 'Size:', file.size);
+ // console.log('Processing PDF file:', file.name, 'Size:', file.size);
   
   // Simulate processing time
   await new Promise(resolve => setTimeout(resolve, 1500));
