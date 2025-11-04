@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Upload, Sparkles, Download, Copy, Mail, Edit3, Eye, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ResumeTemplate1 from '@/components/templates/ResumeTemplate1';
@@ -378,15 +379,23 @@ export default function ResumeOptimizerPage() {
           </div>
 
           {/* Results Section */}
-          <div className="col-span-2 space-y-6">
-            {/* Resume Section */}
-            <div>
-              <div className="flex items-center justify-between pb-2">
-                <span className="flex items-center gap-2 text-lg font-semibold">
-                  <Sparkles className="h-5 w-5" />
-                  Optimized Resume
-                </span>
-                {optimizedResume && (
+          <div className="col-span-2">
+            {optimizedResume ? (
+              <Tabs defaultValue="resume" className="w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <TabsList className="grid w-fit grid-cols-2">
+                    <TabsTrigger value="resume" className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Resume
+                    </TabsTrigger>
+                    {coverLetter && (
+                      <TabsTrigger value="cover-letter" className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Cover Letter
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
+                  
                   <div className="flex items-center gap-2">
                     <Button
                       onClick={toggleEditMode}
@@ -411,60 +420,62 @@ export default function ResumeOptimizerPage() {
                       Download PDF
                     </Button>
                   </div>
-                )}
-              </div>
-              {optimizedResume ? (
-                isEditMode ? (
-                  <Card>
-                    <CardContent className="pt-6">
-                      <EditableResume
-                        resumeData={optimizedResume}
-                        onSave={handleResumeEdit}
-                      />
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div ref={resumeRef} className="print:scale-100 print:w-auto print:h-auto">
-                    <ResumeTemplate1
-                      resumeData={optimizedResume}
-                    />
-                  </div>
-                )
-              ) : (
-                <Card>
-                  <CardContent className="pt-6">
-                    <Alert>
-                      <FileText className="h-4 w-4" />
-                      <AlertDescription>
-                        Upload your resume and job description, then click &quot;Optimize Resume&quot; to see the optimized version here.
-                      </AlertDescription>
-                    </Alert>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Cover Letter Section */}
-            {coverLetter && (
-              <div>
-                <div className="flex items-center justify-between pb-2">
-                  <span className="flex items-center gap-2 text-lg font-semibold">
-                    <Mail className="h-5 w-5" />
-                    Cover Letter
-                  </span>
-                  <Button onClick={copyCoverLetter} variant="outline" size="sm">
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy to Clipboard
-                  </Button>
                 </div>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed font-mono bg-gray-50 p-4 rounded-md border">
-                      {coverLetter}
+
+                <TabsContent value="resume" className="mt-0">
+                  {isEditMode ? (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <EditableResume
+                          resumeData={optimizedResume}
+                          onSave={handleResumeEdit}
+                        />
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div ref={resumeRef} className="print:scale-100 print:w-auto print:h-auto">
+                      <ResumeTemplate1
+                        resumeData={optimizedResume}
+                      />
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  )}
+                </TabsContent>
+
+                {coverLetter && (
+                  <TabsContent value="cover-letter" className="mt-0">
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <Mail className="h-5 w-5" />
+                            Cover Letter
+                          </CardTitle>
+                          <Button onClick={copyCoverLetter} variant="outline" size="sm">
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy to Clipboard
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 p-4 rounded-md border min-h-[400px]">
+                          {coverLetter}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                )}
+              </Tabs>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <Alert>
+                    <FileText className="h-4 w-4" />
+                    <AlertDescription>
+                      Upload your resume and job description, then click &quot;Optimize Resume&quot; to see the optimized version here.
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
