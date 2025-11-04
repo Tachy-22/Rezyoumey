@@ -13,6 +13,7 @@ export interface ResumeOptimizationResult {
   success: boolean;
   originalResumeData?: ResumeData;
   optimizedResumeData?: ResumeData;
+  coverLetter?: string;
   jobAnalysis?: any;
   error?: string;
   executionTime?: number;
@@ -74,7 +75,7 @@ export class ResumeOptimizerAgent {
         result = await generateText({
           model: modelToUse,
           system: RESUME_OPTIMIZER_SYSTEM_PROMPT,
-          prompt: `Please optimize this resume for the given job opportunity:
+          prompt: `Please optimize this resume for the given job opportunity and generate a professional cover letter:
 
 RESUME TEXT:
 ${input.resumeText}
@@ -82,7 +83,21 @@ ${input.resumeText}
 JOB DESCRIPTION:
 ${input.jobDescription}
 
-First use analyzeJobTool to analyze the job, then use extractResumeDataTool to extract the resume data, then create an optimized version yourself using the insights from both tools.`,
+Please do the following:
+1. First use analyzeJobTool to analyze the job description
+2. Then use extractResumeDataTool to extract the resume data
+3. Create an optimized version of the resume using insights from both tools
+4. Generate a professional cover letter that matches the candidate's experience with the job requirements
+
+The cover letter should:
+- Be professional and engaging
+- Highlight relevant experience from the resume that matches the job requirements
+- Show genuine interest in the role and company
+- Be approximately 250-300 words
+- Include a proper greeting and closing
+- Be ready to copy and paste into an email
+
+Please provide both the optimized resume data AND the cover letter in your final response.`,
           tools: this.allTools,
           stopWhen: stepCountIs(10),
           onStepFinish: (stepResult) => {
@@ -114,10 +129,11 @@ First use analyzeJobTool to analyze the job, then use extractResumeDataTool to e
       console.log('📊 result.finishReason:', result.finishReason);
       console.log('📊 result.text preview:', result.text);
 
-      // Extract optimized resume from AI response text
+      // Extract optimized resume and cover letter from AI response text
       let optimizedResumeData: ResumeData | undefined;
+      let coverLetter: string | undefined;
 
-      console.log('🔍 Looking for optimized resume in AI response...');
+      console.log('🔍 Looking for optimized resume and cover letter in AI response...');
 
       // Look for JSON block in the response text
       const jsonMatch = result.text.match(/```json\s*({[\s\S]*?})\s*```/);
@@ -140,6 +156,17 @@ First use analyzeJobTool to analyze the job, then use extractResumeDataTool to e
         console.log('Response text preview:', result.text.substring(0, 500));
       }
 
+      // Extract cover letter from the response
+      const coverLetterMatch = result.text.match(/(?:COVER LETTER|Cover Letter):\s*([\s\S]*?)(?:\n\n(?:[A-Z]|$)|$)/i) ||
+                              result.text.match(/Dear [\s\S]*?(?:Sincerely|Best regards|Kind regards)[\s\S]*?$/i);
+
+      if (coverLetterMatch) {
+        coverLetter = coverLetterMatch[0].trim();
+        console.log('✅ Cover letter extracted from AI response');
+      } else {
+        console.log('❌ No cover letter found in AI response');
+      }
+
       onProgress?.({
         message: '✅ Resume optimization completed!',
         step: 1,
@@ -155,6 +182,7 @@ First use analyzeJobTool to analyze the job, then use extractResumeDataTool to e
       return {
         success: true,
         optimizedResumeData,
+        coverLetter,
         executionTime: Date.now() - startTime,
         toolsUsed: [...new Set(toolsUsed)]
       };

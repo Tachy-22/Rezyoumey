@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileInput } from '@/components/ui/file-input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, Upload, Sparkles, Download } from 'lucide-react';
+import { FileText, Upload, Sparkles, Download, Copy, Mail, Edit3, Eye, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ResumeTemplate1 from '@/components/templates/ResumeTemplate1';
+import EditableResume from '@/components/EditableResume';
 import { extractTextFromPDF } from '@/lib/pdf-utils';
 import { useReactToPrint } from 'react-to-print';
 
@@ -52,7 +52,13 @@ export default function ResumeOptimizerPage() {
   const [resumeText, setResumeText] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [optimizedResume, setOptimizedResume] = useState<ResumeData | null>(null);
+  const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   const handleFileUpload = async (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -60,16 +66,29 @@ export default function ResumeOptimizerPage() {
       return;
     }
 
+    setUploadedFile(file);
+    setIsExtracting(true);
+    setStatusMessage('Converting PDF to text...');
 
     try {
       // Convert PDF to text using server-side utility
       const text = await extractTextFromPDF(file);
       setResumeText(text);
+      setIsExtracting(false);
       toast.success('PDF converted to text successfully');
+      console.log('Resume text extracted, length:', text.length);
     } catch (error) {
+      setIsExtracting(false);
+      setUploadedFile(null);
       toast.error('Failed to convert PDF to text');
       console.error('PDF conversion error:', error);
     }
+  };
+
+  const handleFileRemove = () => {
+    setUploadedFile(null);
+    setResumeText('');
+    setStatusMessage('');
   };
 
 
@@ -80,6 +99,8 @@ export default function ResumeOptimizerPage() {
     }
 
     setIsProcessing(true);
+    setProgress(0);
+    setStatusMessage('Starting resume optimization...');
 
     try {
       const response = await fetch('/api/optimize-resume', {
@@ -97,18 +118,59 @@ export default function ResumeOptimizerPage() {
         throw new Error('Failed to optimize resume');
       }
 
-      const result = await response.json();
+      // Handle Server-Sent Events
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      if (result.success && result.optimizedResumeData) {
-        setOptimizedResume(result.optimizedResumeData);
-        toast.success('Resume optimized successfully!');
-      } else {
-        throw new Error(result.error || 'Optimization failed');
+      if (!reader) {
+        throw new Error('No response stream available');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === 'progress') {
+                setStatusMessage(data.message);
+                // Update progress based on step
+                if (data.step && data.totalSteps) {
+                  setProgress((data.step / data.totalSteps) * 90); // Keep 10% for completion
+                } else {
+                  setProgress(prev => Math.min(prev + 10, 90));
+                }
+              } else if (data.type === 'complete') {
+                if (data.success && data.optimizedResumeData) {
+                  setOptimizedResume(data.optimizedResumeData);
+                  setCoverLetter(data.coverLetter || null);
+                  setProgress(100);
+                  setStatusMessage('Resume optimization completed!');
+                  toast.success('Resume optimized successfully!');
+                } else {
+                  throw new Error(data.error || 'Optimization failed');
+                }
+              } else if (data.type === 'error') {
+                throw new Error(data.error || 'Optimization failed');
+              }
+            } catch (parseError) {
+              console.warn('Failed to parse SSE data:', parseError);
+            }
+          }
+        }
       }
 
     } catch (error) {
       console.error('Optimization error:', error);
       toast.error('Failed to optimize resume. Please try again.');
+      setStatusMessage('Optimization failed');
     } finally {
       setIsProcessing(false);
     }
@@ -130,9 +192,26 @@ export default function ResumeOptimizerPage() {
 
   const downloadOptimizedResume = () => {
     if (!optimizedResume) return;
-    
+
     toast.success('Generating PDF... Please wait');
     handlePrint();
+  };
+
+  const copyCoverLetter = () => {
+    if (!coverLetter) return;
+
+    navigator.clipboard.writeText(coverLetter);
+    toast.success('Cover letter copied to clipboard!');
+  };
+
+  const handleResumeEdit = (updatedData: ResumeData) => {
+    setOptimizedResume(updatedData);
+    setIsEditMode(false);
+    toast.success('Resume updated successfully!');
+  };
+
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
   };
 
   return (
@@ -159,32 +238,93 @@ export default function ResumeOptimizerPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="resume-upload">Resume PDFs</Label>
-                    <FileInput
-                      id="resume-upload"
-                      accept=".pdf"
-                      onFileChange={(file) => {
-                        if (file) {
-                          handleFileUpload(file);
-                        }
+                  {!uploadedFile ? (
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-stone-900 transition-colors cursor-pointer"
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const files = e.dataTransfer.files;
+                        if (files?.[0]) handleFileUpload(files[0]);
                       }}
-                      className="mt-1"
-                    />
-                  </div>
-
-                  {/* {resumeText && (
-                    <div>
-                      <Label htmlFor="resume-text">Resume Text (Preview)</Label>
-                      <Textarea
-                        id="resume-text"
-                        value={resumeText}
-                        onChange={(e) => setResumeText(e.target.value)}
-                        placeholder="Your resume text will appear here..."
-                        className="h-40 mt-1"
+                      onDragOver={(e) => e.preventDefault()}
+                      onClick={() => document.getElementById('resume-upload')?.click()}
+                    >
+                      <input
+                        id="resume-upload"
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file);
+                        }}
+                        className="hidden"
                       />
+                      <div className="flex flex-col items-center">
+                        <div className="w-20 h-24 bg-white rounded-lg flex flex-col items-center justify-center mb-4">
+                          <img 
+                            src="/pdf-icon.svg" 
+                            alt="PDF Icon" 
+                            className="w-20 h-24 mb-1"
+                          />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Upload PDF Resume</h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Drag and drop your PDF file here, or click to browse
+                        </p>
+                        <Button variant="outline" size="sm">
+                          <Upload className="w-4 h-4 mr-2" />
+                          Choose PDF File
+                        </Button>
+                      </div>
                     </div>
-                  )} */}
+                  ) : (
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-14 bg-white rounded-lg flex flex-col items-center justify-center ">
+                            <img 
+                              src="/pdf-icon.svg" 
+                              alt="PDF Icon" 
+                              className="w-12 h-12"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                            <p className="text-gray-500 text-sm">
+                              {(uploadedFile.size / (1024 * 1024)).toFixed(1)} MB
+                            </p>
+                            <div className="flex items-center space-x-2 text-sm">
+
+                              {isExtracting ? (
+                                <div className="flex items-center text-blue-600">
+                                  <div className="animate-spin w-3 h-3 border border-blue-600 border-t-transparent rounded-full mr-1"></div>
+                                  Extracting text...
+                                </div>
+                              ) : resumeText ? (
+                                <div className="flex items-center text-g-600">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Text extracted ({resumeText.length} characters)
+                                </div>
+                              ) : (
+                                <div className="flex items-center text-red-600">
+                                  <AlertCircle className="w-3 h-3 mr-1" />
+                                  Extraction failed
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleFileRemove}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -219,41 +359,112 @@ export default function ResumeOptimizerPage() {
               <Sparkles className="h-5 w-5 mr-2" />
               {isProcessing ? 'Optimizing...' : 'Optimize Resume'}
             </Button>
-          </div>
 
-          {/* Results Section */}
-          <div className=" col-span-2">
-            {optimizedResume ? (
-              <Card className='border'>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5" />
-                      Optimized Resume
-                    </span>
-                    <Button onClick={downloadOptimizedResume} variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div ref={resumeRef} className="print:scale-100 print:w-auto print:h-auto">
-                    <ResumeTemplate1 resumeData={optimizedResume || undefined} />
+            {/* Progress Display */}
+            {isProcessing && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">Progress</span>
+                      <span>{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="w-full" />
+                    <p className="text-sm text-gray-600">{statusMessage}</p>
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <Card>
-                <CardContent className="pt-6">
-                  <Alert>
-                    <FileText className="h-4 w-4" />
-                    <AlertDescription>
-                      Upload your resume and job description, then click &quot;Optimize Resume&quot; to see the optimized version here.
-                    </AlertDescription>
-                  </Alert>
-                </CardContent>
-              </Card>
+            )}
+          </div>
+
+          {/* Results Section */}
+          <div className="col-span-2 space-y-6">
+            {/* Resume Section */}
+            <div>
+              <div className="flex items-center justify-between pb-2">
+                <span className="flex items-center gap-2 text-lg font-semibold">
+                  <Sparkles className="h-5 w-5" />
+                  Optimized Resume
+                </span>
+                {optimizedResume && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={toggleEditMode}
+                      variant="outline"
+                      size="sm"
+                      className={isEditMode ? "bg-blue-50 border-blue-200" : ""}
+                    >
+                      {isEditMode ? (
+                        <>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Resume
+                        </>
+                      ) : (
+                        <>
+                          <Edit3 className="h-4 w-4 mr-2" />
+                          Edit Resume
+                        </>
+                      )}
+                    </Button>
+                    <Button onClick={downloadOptimizedResume} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download PDF
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {optimizedResume ? (
+                isEditMode ? (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <EditableResume
+                        resumeData={optimizedResume}
+                        onSave={handleResumeEdit}
+                      />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div ref={resumeRef} className="print:scale-100 print:w-auto print:h-auto">
+                    <ResumeTemplate1
+                      resumeData={optimizedResume}
+                    />
+                  </div>
+                )
+              ) : (
+                <Card>
+                  <CardContent className="pt-6">
+                    <Alert>
+                      <FileText className="h-4 w-4" />
+                      <AlertDescription>
+                        Upload your resume and job description, then click &quot;Optimize Resume&quot; to see the optimized version here.
+                      </AlertDescription>
+                    </Alert>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Cover Letter Section */}
+            {coverLetter && (
+              <div>
+                <div className="flex items-center justify-between pb-2">
+                  <span className="flex items-center gap-2 text-lg font-semibold">
+                    <Mail className="h-5 w-5" />
+                    Cover Letter
+                  </span>
+                  <Button onClick={copyCoverLetter} variant="outline" size="sm">
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy to Clipboard
+                  </Button>
+                </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed font-mono bg-gray-50 p-4 rounded-md border">
+                      {coverLetter}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         </div>

@@ -47,7 +47,7 @@ const Resume = ({ resumeData }: ResumeProps) => {
     return (
         <div className="min-h-screen bg-white flex items-center justify-center p-8">
             <div
-                className="bg-white w-[210mm] h-[297mm] p-[15mm] shadow-lg font-['Lora',serif] text-[#333333] leading-relaxed overflow-hidden"
+                className="bg-white w-[210mm] h-[297mm] p-[15mm shadow-l font-['Lora',serif] text-[#333333] leading-relaxed overflow-hidden"
                 style={{
                     fontSize: '9pt',
                     lineHeight: '1.3',
