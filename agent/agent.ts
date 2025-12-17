@@ -28,7 +28,7 @@ export interface ProgressUpdate {
 }
 
 export class ResumeOptimizerAgent {
-  private model = google('gemini-2.5-flash');
+  private model = google('gemini-2.5-pro');
   private allTools: ToolSet = {};
 
   constructor() {
